@@ -407,7 +407,7 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
       {(canManageDelete || canManageDowload) && (
         <Card>
           <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
+            <CardTitle>Acciones Rapidas</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -418,12 +418,12 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
                     className="h-20 flex flex-col items-center justify-center space-y-2 bg-transparent"
                   >
                     <Upload className="h-6 w-6" />
-                    <span>Upload Code</span>
+                    <span>Subir Codigo</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Upload Project</DialogTitle>
+                    <DialogTitle>Subir Proyecto</DialogTitle>
                     <DialogDescription>
                       Completa la información del proyecto y selecciona la
                       carpeta a subir.
@@ -448,7 +448,7 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
                       />
                     </div>
                     <div>
-                      <Label>Select Folder</Label>
+                      <Label>Seleccionar Carpeta</Label>
                       <input
                         ref={uploadInputRef}
                         type="file"
@@ -467,7 +467,7 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
                       {new Date().toLocaleDateString()}
                     </p>
                     <Button type="submit" className="w-full">
-                      Upload
+                      Subir
                     </Button>
                   </form>
                 </DialogContent>

@@ -7,7 +7,6 @@ export default ({ pm2 }) => {
   /* ==============================
         INICIAR/DETENER/REINICIAR SERVICIO CON PM2
     ================================ */
-
   router.post('/services/:accion/:name', (req, res) => {
     const { accion, name } = req.params;
     const accionesPermitidas = ['start', 'stop', 'restart'];
@@ -40,7 +39,6 @@ export default ({ pm2 }) => {
   /* ==============================
         LISTAR SERVICIOS PM2
     ================================ */
-
   router.get('/services/list', (req, res) => {
     pm2.connect((err) => {
       if (err) {
@@ -60,14 +58,14 @@ export default ({ pm2 }) => {
         const services = processDescriptionList.map((proc) => ({
           name: proc.name,
           pm_id: proc.pm_id,
-          status: proc.pm2_env.status, // online / stopped / etc.
+          status: proc.pm2_env.status, // online / stopped / errored
           script: proc.pm2_env.pm_exec_path,
           cwd: proc.pm2_env.pm_cwd,
           instances: proc.pm2_env.instances,
-          monit: proc.monit, // { memory, cpu }
+          memory: (proc.monit.memory / 1024 / 1024).toFixed(2), // MB
+          cpu: proc.monit.cpu, // %
           port: proc.pm2_env.env.PORT || null,
-          restartTime: proc.pm2_env.restart_time,
-          uptime: proc.pm2_env.pm_uptime,
+          restartCount: proc.pm2_env.restart_time,
         }));
 
         res.json(services);
