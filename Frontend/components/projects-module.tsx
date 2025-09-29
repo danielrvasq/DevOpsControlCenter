@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRef } from "react";
 import {
   Card,
   CardContent,
@@ -31,11 +32,13 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
   const [projects, setProjects] = useState<any[]>([]);
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<any[]>([]);
   const [selectedProject, setSelectedProject] = useState<any>(null);
   const [versions, setVersions] = useState<any[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [canManage, setCurrentUser] = useState(null);
+  const [canManage, setCurrentUser] = useState<any>(null);
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  const versionInputRef = useRef<HTMLInputElement | null>(null);
 
   // administrar permisos de usuario
   useEffect(() => {
@@ -110,6 +113,67 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
     loadProjects();
   }, []);
 
+  const normalizeFileListFromInput = (files: FileList | null) => {
+    if (!files) return [];
+    const arr: any[] = [];
+    for (const f of Array.from(files)) {
+      const relativePath = (f as any).webkitRelativePath || f.name;
+      if (relativePath.split("/").some((s: string) => s === "node_modules"))
+        continue;
+      arr.push({ file: f, relativePath });
+    }
+    return arr;
+  };
+
+  const handleFolderPick = async () => {
+    // feature-detect
+    if (!("showDirectoryPicker" in window)) return;
+    try {
+      // @ts-ignore
+      const dirHandle = await (window as any).showDirectoryPicker();
+      const entries: any[] = [];
+
+      const walk = async (dir: any, prefix = "") => {
+        for await (const [name, handle] of dir.entries()) {
+          if (handle.kind === "file") {
+            const file = await handle.getFile();
+            const relativePath = (prefix ? prefix + "/" : "") + name;
+            if (
+              relativePath.split("/").some((s: string) => s === "node_modules")
+            )
+              continue;
+            entries.push({ file, relativePath });
+          } else if (handle.kind === "directory") {
+            await walk(handle, (prefix ? prefix + "/" : "") + name);
+          }
+        }
+      };
+
+      await walk(dirHandle);
+      setSelectedFiles(entries);
+    } catch (e) {
+      console.error("Error picking directory:", e);
+    }
+  };
+
+  useEffect(() => {
+    if (uploadInputRef.current) {
+      try {
+        uploadInputRef.current.setAttribute("webkitdirectory", "");
+        uploadInputRef.current.setAttribute("directory", "");
+      } catch (e) {
+        /* ignore */
+      }
+    }
+    if (versionInputRef.current) {
+      try {
+        versionInputRef.current.setAttribute("webkitdirectory", "");
+        versionInputRef.current.setAttribute("directory", "");
+      } catch (e) {
+        /* ignore */
+      }
+    }
+  }, []);
   // Subir nuevo proyecto
   // Subir nuevo proyecto
   const handleFileUpload = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -122,13 +186,9 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
 
     const formData = new FormData();
 
-    // clave: usar webkitRelativePath
-    selectedFiles.forEach((file) => {
-      formData.append(
-        "files",
-        file,
-        (file as any).webkitRelativePath || file.name
-      );
+    selectedFiles.forEach((entry) => {
+      formData.append("files", entry.file, entry.relativePath);
+      formData.append("paths", entry.relativePath);
     });
 
     formData.append("name", projectName || "ProyectoSinNombre");
@@ -137,7 +197,7 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
     formData.append("date", new Date().toISOString());
 
     try {
-      const res = await fetch("http://localhost:3001/upload", {
+      const res = await fetch("http://localhost:3001/api/upload", {
         method: "POST",
         body: formData,
       });
@@ -167,13 +227,9 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
 
     const formData = new FormData();
 
-    // igual que arriba, enviar ruta relativa
-    selectedFiles.forEach((file) => {
-      formData.append(
-        "files",
-        file,
-        (file as any).webkitRelativePath || file.name
-      );
+    selectedFiles.forEach((entry) => {
+      formData.append("files", entry.file, entry.relativePath);
+      formData.append("paths", entry.relativePath);
     });
 
     formData.append("name", projectToUpdate.name);
@@ -182,7 +238,7 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
     formData.append("date", new Date().toISOString());
 
     try {
-      const res = await fetch("http://localhost:3001/upload", {
+      const res = await fetch("http://localhost:3001/api/upload", {
         method: "POST",
         body: formData,
       });
@@ -310,7 +366,7 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
                                 <button
                                   onClick={() =>
                                     handleDownload(project.id, v.versionNumber)
-                                  } // <-- Pasar ambos
+                                  }
                                 >
                                   Descargar v{v.versionNumber}
                                 </button>
@@ -321,14 +377,13 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
                         <div className="mt-4 space-y-2">
                           <Label>Subir nueva versión</Label>
                           <input
+                            ref={versionInputRef}
                             type="file"
-                            // @ts-ignore
-                            webkitdirectory=""
-                            directory=""
                             multiple
+                            {...({ webkitdirectory: "", directory: "" } as any)}
                             onChange={(e) =>
                               setSelectedFiles(
-                                e.target.files ? Array.from(e.target.files) : []
+                                normalizeFileListFromInput(e.target.files)
                               )
                             }
                           />
@@ -395,15 +450,14 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
                     <div>
                       <Label>Select Folder</Label>
                       <input
+                        ref={uploadInputRef}
                         type="file"
-                        // @ts-ignore
-                        webkitdirectory=""
-                        directory=""
                         multiple
                         required
+                        {...({ webkitdirectory: "", directory: "" } as any)}
                         onChange={(e) =>
                           setSelectedFiles(
-                            e.target.files ? Array.from(e.target.files) : []
+                            normalizeFileListFromInput(e.target.files)
                           )
                         }
                       />
