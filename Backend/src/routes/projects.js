@@ -2,18 +2,11 @@
 import express from 'express';
 import ignore from 'ignore';
 
-/*=======
-Projects router (versioned uploads/downloads)
-==========*/
-// El router es una función que acepta las dependencias
+
 export default ({ poolPromise, sql, PROJECTS_PATH, upload, path, fs, archiver }) => {
   const router = express.Router();
 
-  /* ==============================
-        MANEJO DE PROYECTOS CON VERSIONES
-    ================================ */
-
-  // Listar proyectos con su última versión
+  // LISTAR PROYECTOS Y SU ÚLTIMA VERSIÓN
   router.get('/projects', async (req, res) => {
     try {
       const pool = await poolPromise;
@@ -32,40 +25,29 @@ export default ({ poolPromise, sql, PROJECTS_PATH, upload, path, fs, archiver })
     }
   });
 
-  /*=======
-  POST /api/upload - subir proyecto (nueva versión o primer proyecto)
-  ==========*/
+ 
+  // SUBIR NUEVO PROYECTO O VERSIÓN
   router.post('/upload', upload.array('files'), async (req, res) => {
     try {
       const { name, description, owner, date } = req.body;
 
-      // Validaciones básicas
-      if (!name || !owner || !date) {
-        return res.status(400).json({ error: 'Missing required fields: name, owner, date' });
-      }
-
       const ownerInt = parseInt(owner, 10);
       if (isNaN(ownerInt)) {
-        return res.status(400).json({ error: 'owner must be an integer' });
+        return res.status(400).json({ error: 'el propietario debe ser un número entero' });
       }
 
       if (!req.files || req.files.length === 0) {
         return res.status(400).json({
-          error: "No files were sent. Did you set name='files' in <input>?",
+          error: "los archivos son obligatorios. Use el campo 'files' en el formulario.",
         });
       }
 
       // Normalizar nombre de carpeta (eliminar caracteres problemáticos)
-      // move hyphen to the end of the class to avoid unnecessary escaping
       const folderName = name.trim().replace(/[^a-zA-Z0-9._ -]/g, '_');
       const baseProjectFolder = path.join(PROJECTS_PATH, folderName);
       fs.mkdirSync(baseProjectFolder, { recursive: true });
 
       const pool = await poolPromise;
-
-      // NOTE: instead of parsing a provided .gitignore, always ignore any paths
-      // that include a node_modules segment. This is a deterministic rule that
-      // avoids relying on uploaded .gitignore files.
 
       // Obtener o crear el ID del proyecto
       let projectId;
@@ -136,9 +118,6 @@ export default ({ poolPromise, sql, PROJECTS_PATH, upload, path, fs, archiver })
         return { file, relativePath, segments };
       });
 
-      // Check if a root .gitignore was uploaded; if so, use it to filter files
-      // (this provides GitHub-like behavior for common cases). We still always
-      // exclude node_modules.
       let allowedSet = null;
       const gitignoreEntry = uploadEntries.find((e) => e.relativePath === '.gitignore');
       if (gitignoreEntry) {
@@ -154,7 +133,7 @@ export default ({ poolPromise, sql, PROJECTS_PATH, upload, path, fs, archiver })
           console.warn('[UPLOAD] Error applying uploaded .gitignore:', e);
           allowedSet = null;
         } finally {
-          // remove the temporary .gitignore file
+          // eliminar el .gitignore temporal
           try {
             fs.unlinkSync(gitignoreEntry.file.path);
           } catch (e) {
@@ -164,7 +143,6 @@ export default ({ poolPromise, sql, PROJECTS_PATH, upload, path, fs, archiver })
       }
 
       if (!allowedSet) {
-        // fallback: deny anything under node_modules
         allowedSet = new Set(
           uploadEntries
             .map((e) => e.relativePath)
@@ -187,7 +165,6 @@ export default ({ poolPromise, sql, PROJECTS_PATH, upload, path, fs, archiver })
           continue;
         }
 
-        // Ignorar archivos dentro de node_modules (o cualquier que no esté en allowedSet)
         if (!allowedSet.has(relativePath)) {
           console.log(`[UPLOAD] Ignorando por regla (node_modules): ${relativePath}`);
           try {
@@ -206,7 +183,7 @@ export default ({ poolPromise, sql, PROJECTS_PATH, upload, path, fs, archiver })
         try {
           fs.renameSync(file.path, destPath);
         } catch (e) {
-          // si falla el rename (por ejemplo en distintos dispositivos), copiar y eliminar
+          // si falla el rename, copiar y eliminar
           try {
             const data = fs.readFileSync(file.path);
             fs.writeFileSync(destPath, data);
@@ -262,9 +239,7 @@ export default ({ poolPromise, sql, PROJECTS_PATH, upload, path, fs, archiver })
     }
   });
 
-  /*=======
-  GET /api/projects/:id/versions/:version/download - descargar versión
-  ==========*/
+  // DESCARGAR VERSIÓN COMO ZIP
   router.get('/projects/:id/versions/:version/download', async (req, res) => {
     try {
       const { id, version } = req.params;
@@ -307,9 +282,7 @@ export default ({ poolPromise, sql, PROJECTS_PATH, upload, path, fs, archiver })
     }
   });
 
-  /*=======
-  GET /api/projects/:id/versions - historial de versiones
-  ==========*/
+  // OBTENER HISTORIAL DE VERSIONES DE UN PROYECTO
   router.get('/projects/:id/versions', async (req, res) => {
     try {
       const { id } = req.params;
@@ -330,9 +303,82 @@ export default ({ poolPromise, sql, PROJECTS_PATH, upload, path, fs, archiver })
     }
   });
 
-  /*=======
-  DELETE /api/projects/:id - eliminar proyecto y archivos
-  ==========*/
+  // ACTUALIZAR METADATOS DEL PROYECTO (nombre, descripción)
+ router.put('/projects/:id', async (req, res) => {
+  try {
+    const projectId = parseInt(req.params.id, 10);
+    const { name, description } = req.body;
+
+    if (isNaN(projectId)) {
+      return res.status(400).json({ error: 'El ID del proyecto debe ser un número entero.' });
+    }
+
+    if (!name) {
+      return res.status(400).json({ error: 'El nombre es obligatorio.' });
+    }
+
+    const pool = await poolPromise;
+
+    // Obtener la carpeta actual del proyecto
+    const projectResult = await pool
+      .request()
+      .input('id', sql.Int, projectId)
+      .query('SELECT name FROM Projects WHERE id = @id');
+
+    if (projectResult.recordset.length === 0) {
+      return res.status(404).json({ error: 'Proyecto no encontrado.' });
+    }
+
+    const oldFolderName = projectResult.recordset[0].name;
+    const oldPath = path.join(PROJECTS_PATH, oldFolderName);
+
+    // Normalizar nuevo nombre de carpeta
+    const newFolderName = name.trim().replace(/[^a-zA-Z0-9._ -]/g, '_');
+    const newPath = path.join(PROJECTS_PATH, newFolderName);
+
+    // Comprobar si ya existe otro proyecto con el mismo nombre
+    const existing = await pool
+      .request()
+      .input('id', sql.Int, projectId)
+      .input('name', sql.NVarChar, newFolderName)
+      .query(`
+        SELECT id FROM Projects
+        WHERE name = @name AND id <> @id
+      `);
+
+    if (existing.recordset.length > 0) {
+      return res.status(409).json({ error: 'Ya existe un proyecto con ese nombre.' });
+    }
+
+    // Renombrar la carpeta física
+    if (fs.existsSync(oldPath)) {
+      fs.renameSync(oldPath, newPath);
+      console.log(`[UPDATE] Carpeta renombrada de ${oldPath} a ${newPath}`);
+    } else {
+      console.warn(`[UPDATE] Carpeta antigua no encontrada: ${oldPath}`);
+    }
+
+    // Actualizar la base de datos
+    await pool
+      .request()
+      .input('id', sql.Int, projectId)
+      .input('name', sql.NVarChar, newFolderName)
+      .input('description', sql.NVarChar, description || '')
+      .input('path', sql.NVarChar, newPath)
+      .query(`
+        UPDATE Projects
+        SET name = @name, description = @description, path = @path
+        WHERE id = @id
+      `);
+
+    res.json({ message: 'Proyecto actualizado correctamente.' });
+  } catch (err) {
+    console.error('Error actualizando proyecto:', err);
+    res.status(500).json({ error: 'No se pudo actualizar el proyecto' });
+  }
+});
+
+  // ELIMINAR PROYECTO Y SUS VERSIONES
   router.delete('/projects/:id', async (req, res) => {
     try {
       const projectId = parseInt(req.params.id, 10);

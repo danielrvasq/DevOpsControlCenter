@@ -20,7 +20,6 @@ server.js
 │ └── services.js -> Gestión de servicios vía PM2
 └── ...
 
-
 ---
 
 ## 2. Dependencias principales
@@ -81,6 +80,7 @@ Los usuarios tienen atributos: `id, name, username, email, rol, state, lastAcces
   - Crea carpetas `v1`, `v2`, … en disco.  
 - **GET `/api/projects/:id/versions`** -> lista el historial de versiones.  
 - **GET `/api/projects/:id/versions/:version/download`** -> genera un ZIP de la versión seleccionada.  
+- **PUT `/api/projects/:id`** -> actualiza el nombre y la descripcion de un proyecto de la base de datos y del disco.
 - **DELETE `/api/projects/:id`** -> elimina proyecto de base de datos y del disco.
 
 ### 4.4. Monitoreo de APIs (`apis.js`)
@@ -108,15 +108,51 @@ El sistema utiliza **SQL Server** con las siguientes tablas principales:
 
 - **Users**
   - `id, name, username, email, password, rol, state, lastAccess`  
+  | Column Name  | Data Type   | Max Length | Nullable |
+  |-------------|------------|------------|----------|
+  | id          | int        | NULL       | NO       |
+  | name        | nvarchar   | 255        | NO       |
+  | username    | nvarchar   | 255        | NO       |
+  | email       | nvarchar   | 255        | NO       |
+  | rol         | nvarchar   | 50         | NO       |
+  | password    | nvarchar   | 255        | NO       |
+  | state       | bit        | NULL       | NO       |
+  | lastAccess  | datetime2  | NULL       | YES      |
+
 
 - **Projects**
-  - `id, name, description, owner, date, path`  
+  - `id, name, description, owner, date, path` 
+  | Column Name  | Data Type   | Max Length | Nullable |
+  |-------------|------------|------------|----------|
+  | id          | int        | NULL       | NO       |
+  | name        | nvarchar   | 255        | NO       |
+  | date        | date       | NULL       | NO       |
+  | owner       | int        | NULL       | NO       |
+  | description | nvarchar   | -1         | YES      |
+  | path        | nvarchar   | 255        | YES      |
+ 
 
 - **ProjectVersions**
   - `id, projectId, versionNumber, path, uploadedBy, uploadDate, isLatest`  
+  | Column Name    | Data Type   | Max Length | Nullable |
+  |----------------|------------|------------|----------|
+  | id             | int        | NULL       | NO       |
+  | projectId      | int        | NULL       | NO       |
+  | versionNumber  | int        | NULL       | NO       |
+  | path           | nvarchar   | 500        | NO       |
+  | uploadDate     | datetime2  | NULL       | NO       |
+  | uploadedBy     | int        | NULL       | NO       |
+  | isLatest       | bit        | NULL       | NO       |
+
 
 - **Apis**
   - `id, name, path`
+  | Column Name | Data Type | Max Length | Nullable |
+  |------------|-----------|------------|----------|
+  | id         | int       | NULL       | NO       |
+  | name       | varchar   | 50         | NO       |
+  | path       | varchar   | 100        | NO       |
+
 
 ---
 

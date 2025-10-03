@@ -43,45 +43,43 @@ interface Service {
 }
 
 export default function MonitoringModule() {
+  // ESTADOS DE SERVICIOS
   const [services, setServices] = useState<Service[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // ESTADOS DE AUTENTICACIÓN
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
-
-  // Estados para el modal de crear API
+  
+  // ESTADOS PARA CREAR API
   const [newApiName, setNewApiName] = useState("");
   const [newApiPath, setNewApiPath] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-
-  // Icono para online/offline/warning
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "online":
-        return <CheckCircle className="h-5 w-5 text-green-600" />;
-      case "offline":
-        return <XCircle className="h-5 w-5 text-red-600" />;
-      case "warning":
-        return <AlertTriangle className="h-5 w-5 text-yellow-600" />;
-      default:
-        return <XCircle className="h-5 w-5 text-gray-400" />;
-    }
-  };
-
-  // administrar permisos de usuario
+  
+  // PERMISOS DE USUARIO
+  const canAdmin = currentUser?.rol === "admin";
+  const canDev = currentUser?.rol === "developer";
+  
+  // DEFINIR CONTADORES
+  const onlineServices = services.filter((s) => s.status === "online").length;
+  const offlineServices = services.filter((s) => s.status === "offline").length;
+  const warningServices = services.filter((s) => s.status === "warning").length;
+  
+  // ADMINISTRAR PERMISOS DE USUARIO
   useEffect(() => {
     async function fetchUser() {
       const storedUser = localStorage.getItem("currentUser");
       if (!storedUser) return;
-
+      
       const parsedUser = JSON.parse(storedUser);
-
+      
       try {
         const res = await fetch(
           `http://localhost:3001/api/users/${parsedUser.id}`
         );
         if (!res.ok) throw new Error("Error obteniendo al usuario");
         const userData = await res.json();
-
+        
         setCurrentUser(userData);
         setIsAuthenticated(true);
         localStorage.setItem("currentUser", JSON.stringify(userData));
@@ -89,78 +87,11 @@ export default function MonitoringModule() {
         console.error("Error cargando usuario", e);
       }
     }
-
+    
     fetchUser();
   }, []);
-  const canManageDelete = currentUser?.rol === "admin";
-  const canManageCreate = currentUser?.rol === "developer";
 
-  // Mostrar estadados en un Badge
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "online":
-        return (
-          <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
-            Operativo
-          </Badge>
-        );
-      case "offline":
-        return <Badge variant="destructive">Caído</Badge>;
-      case "warning":
-        return (
-          <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">
-            Lento
-          </Badge>
-        );
-      default:
-        return <Badge variant="secondary">Desconocido</Badge>;
-    }
-  };
-  // Determinar el estado
-  const determineStatus = (
-    metrics: Service
-  ): "online" | "offline" | "warning" => {
-    if (
-      metrics.availability === "Caído" ||
-      metrics.availability === "Unavailable" ||
-      metrics.statusCode !== 200
-    ) {
-      return "offline";
-    }
-    if (metrics.responseTime && metrics.responseTime > 500) {
-      return "warning";
-    }
-    return "online";
-  };
-
-  /*=============================
-    CALCULAR METRICAS
-===============================*/
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    try {
-      const response = await fetch("http://localhost:3001/api/monitor/apis");
-      const data: Service[] = await response.json();
-
-      const mapped = data.map((api) => ({
-        ...api,
-        status: determineStatus(api),
-        lastCheck: new Date(api.lastCheck).toLocaleString("es-ES"),
-      }));
-
-      setServices(mapped);
-    } catch (error) {
-      console.error("Error fetching API metrics:", error);
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
-  /*=============================
-    ADMINISTAR API
-===============================*/
-  // Crear una nueva api
+  // CREAR API
   const handleCreateApi = async () => {
     try {
       const res = await fetch("http://localhost:3001/api/apis", {
@@ -183,9 +114,17 @@ export default function MonitoringModule() {
     }
   };
 
-  // Eliminar una api
+  // ELIMINAR API
   const handleDeleteApi = async (apiId: number) => {
     try {
+      const confirmDelete = window.confirm(
+        "¿Estás seguro de que deseas eliminar esta API?"
+      );
+
+      if (!confirmDelete) {
+        return; // cancelar la eliminación
+      }
+
       const res = await fetch(`http://localhost:3001/api/apis/${apiId}`, {
         method: "DELETE",
       });
@@ -200,18 +139,84 @@ export default function MonitoringModule() {
       console.error("Error eliminando la api:", error);
     }
   };
+  
+  // DETERMINAR ESTADO
+  const determineStatus = (
+    metrics: Service
+  ): "online" | "offline" | "warning" => {
+    if (
+      metrics.availability === "Caído" ||
+      metrics.availability === "Unavailable" ||
+      metrics.statusCode !== 200
+    ) {
+      return "offline";
+    }
+    if (metrics.responseTime && metrics.responseTime > 500) {
+      return "warning";
+    }
+    return "online";
+  };
 
-  // ==============================
-  // Contadores
-  // ==============================
-  const onlineServices = services.filter((s) => s.status === "online").length;
-  const offlineServices = services.filter((s) => s.status === "offline").length;
-  const warningServices = services.filter((s) => s.status === "warning").length;
+  // MOSTRAR ESTADOS EN BADGES
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "online":
+        return (
+          <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
+            Operativo
+          </Badge>
+        );
+      case "offline":
+        return <Badge variant="destructive">Caído</Badge>;
+      case "warning":
+        return (
+          <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">
+            Lento
+          </Badge>
+        );
+      default:
+        return <Badge variant="secondary">Desconocido</Badge>;
+      }
+  };
 
-  // Cargar al inicio
-  useEffect(() => {
-    handleRefresh();
-  }, []);
+  // REFRESCAR DATOS
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      const response = await fetch("http://localhost:3001/api/monitor/apis");
+      const data: Service[] = await response.json();
+      
+      const mapped = data.map((api) => ({
+        ...api,
+        status: determineStatus(api),
+        lastCheck: new Date(api.lastCheck).toLocaleString("es-ES"),
+      }));
+
+      setServices(mapped);
+    } catch (error) {
+      console.error("Error fetching API metrics:", error);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+  // ICONOS DE ESTADO
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "online":
+        return <CheckCircle className="h-5 w-5 text-green-600" />;
+        case "offline":
+          return <XCircle className="h-5 w-5 text-red-600" />;
+          case "warning":
+            return <AlertTriangle className="h-5 w-5 text-yellow-600" />;
+            default:
+        return <XCircle className="h-5 w-5 text-gray-400" />;
+    }
+  };
+  
+    // CARGAR DATOS AL INICIAR
+    useEffect(() => {
+      handleRefresh();
+    }, []);
 
   return (
     <div className="space-y-6">
@@ -229,7 +234,7 @@ export default function MonitoringModule() {
             onClick={handleRefresh}
             disabled={isRefreshing}
             className="flex items-center space-x-2"
-          >
+            >
             <RefreshCw
               className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`}
             />
@@ -238,7 +243,7 @@ export default function MonitoringModule() {
 
           {/* Botón + Modal para crear API */}
 
-          {(canManageDelete || canManageCreate) && (
+          {(canAdmin || canDev) && (
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
               <DialogTrigger asChild>
                 <Button className="flex items-center space-x-2">
@@ -250,13 +255,20 @@ export default function MonitoringModule() {
                 <DialogHeader>
                   <DialogTitle>Agregar nueva API</DialogTitle>
                 </DialogHeader>
-                <div className="space-y-4 mt-4">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleCreateApi();
+                  }}
+                  className="space-y-4 mt-4"
+                >
                   <div>
                     <label className="text-sm font-medium">Nombre</label>
                     <Input
                       value={newApiName}
                       onChange={(e) => setNewApiName(e.target.value)}
                       placeholder="Ejemplo: API Usuarios"
+                      required
                     />
                   </div>
                   <div>
@@ -265,12 +277,14 @@ export default function MonitoringModule() {
                       value={newApiPath}
                       onChange={(e) => setNewApiPath(e.target.value)}
                       placeholder="https://ejemplo.com/api"
+                      type="url"
+                      required
                     />
                   </div>
-                  <Button onClick={handleCreateApi} className="w-full">
+                  <Button type="submit" className="w-full">
                     Guardar
                   </Button>
-                </div>
+                </form>
               </DialogContent>
             </Dialog>
           )}
@@ -423,7 +437,7 @@ export default function MonitoringModule() {
                   <Clock className="h-3 w-3" />
                   <span>Última verificación: {service.lastCheck || "N/A"}</span>
                 </div>
-                {canManageDelete && (
+                {canAdmin && (
                   <Button
                     variant="destructive"
                     size="sm"

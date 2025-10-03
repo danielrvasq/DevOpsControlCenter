@@ -22,25 +22,44 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Upload, Calendar, User, Database, Trash2, Layers } from "lucide-react";
+import {
+  Upload,
+  Calendar,
+  User,
+  Database,
+  Trash2,
+  Layers,
+  Edit,
+} from "lucide-react";
 
 interface ProjectsModuleProps {
   currentUser: any;
 }
 
 export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
+  // ESTADOS DE PROJECTOS
   const [projects, setProjects] = useState<any[]>([]);
   const [projectName, setProjectName] = useState("");
   const [projectDescription, setProjectDescription] = useState("");
+  const [versions, setVersions] = useState<any[]>([]);
+
+  // 
   const [selectedFiles, setSelectedFiles] = useState<any[]>([]);
   const [selectedProject, setSelectedProject] = useState<any>(null);
-  const [versions, setVersions] = useState<any[]>([]);
+  
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [canManage, setCurrentUser] = useState<any>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const versionInputRef = useRef<HTMLInputElement | null>(null);
+  const [editingProject, setEditingProject] = useState<any | null>(null);
+  const [editProjectForm, setEditProjectForm] = useState({
+    name: "",
+    description: "",
+  });
+  const canAdmin = canManage?.rol === "admin";
+  const canDev = canManage?.rol === "developer";
 
-  // administrar permisos de usuario
+  // ADMINISTRAR PERMISOS DE USUARIO
   useEffect(() => {
     async function fetchUser() {
       const storedUser = localStorage.getItem("currentUser");
@@ -65,13 +84,8 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
 
     fetchUser();
   }, []);
-  const canManageDelete = canManage?.rol === "admin";
-  const canManageDowload = canManage?.rol === "developer";
 
-  /*=============================
-    FUNCIONES PARA ADMINISTRAR PROYECTOS
-===============================*/
-  // Cargar proyectos
+  // CARGAR PROYECTOS
   const loadProjects = async () => {
     try {
       const res = await fetch("http://localhost:3001/api/projects");
@@ -96,7 +110,7 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
     }
   };
 
-  // Cargar versiones de un proyecto
+  // CARGAR VERSIONES
   const loadVersions = async (projectId: number) => {
     try {
       const res = await fetch(
@@ -112,7 +126,8 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
   useEffect(() => {
     loadProjects();
   }, []);
-
+  
+  // NORMALIZAR LISTA DE ARCHIVOS 
   const normalizeFileListFromInput = (files: FileList | null) => {
     if (!files) return [];
     const arr: any[] = [];
@@ -125,37 +140,39 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
     return arr;
   };
 
-  const handleFolderPick = async () => {
-    // feature-detect
-    if (!("showDirectoryPicker" in window)) return;
-    try {
-      // @ts-ignore
-      const dirHandle = await (window as any).showDirectoryPicker();
-      const entries: any[] = [];
+  // SELECCIONAR CARPETA
+  // const handleFolderPick = async () => {
+  //   // feature-detect
+  //   if (!("showDirectoryPicker" in window)) return;
+  //   try {
+  //     // @ts-ignore
+  //     const dirHandle = await (window as any).showDirectoryPicker();
+  //     const entries: any[] = [];
 
-      const walk = async (dir: any, prefix = "") => {
-        for await (const [name, handle] of dir.entries()) {
-          if (handle.kind === "file") {
-            const file = await handle.getFile();
-            const relativePath = (prefix ? prefix + "/" : "") + name;
-            if (
-              relativePath.split("/").some((s: string) => s === "node_modules")
-            )
-              continue;
-            entries.push({ file, relativePath });
-          } else if (handle.kind === "directory") {
-            await walk(handle, (prefix ? prefix + "/" : "") + name);
-          }
-        }
-      };
+  //     const walk = async (dir: any, prefix = "") => {
+  //       for await (const [name, handle] of dir.entries()) {
+  //         if (handle.kind === "file") {
+  //           const file = await handle.getFile();
+  //           const relativePath = (prefix ? prefix + "/" : "") + name;
+  //           if (
+  //             relativePath.split("/").some((s: string) => s === "node_modules")
+  //           )
+  //             continue;
+  //           entries.push({ file, relativePath });
+  //         } else if (handle.kind === "directory") {
+  //           await walk(handle, (prefix ? prefix + "/" : "") + name);
+  //         }
+  //       }
+  //     };
 
-      await walk(dirHandle);
-      setSelectedFiles(entries);
-    } catch (e) {
-      console.error("Error picking directory:", e);
-    }
-  };
+  //     await walk(dirHandle);
+  //     setSelectedFiles(entries);
+  //   } catch (e) {
+  //     console.error("Error picking directory:", e);
+  //   }
+  // };
 
+  // CONFIGURAR INPUTS PARA CARPETAS
   useEffect(() => {
     if (uploadInputRef.current) {
       try {
@@ -174,8 +191,8 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
       }
     }
   }, []);
-  // Subir nuevo proyecto
-  // Subir nuevo proyecto
+
+  // SUBIR PROYECTO
   const handleFileUpload = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -219,7 +236,7 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
     }
   };
 
-  // Subir nueva versión
+  // SUBIR NUEVA VERSION
   const handleUploadVersion = async (projectId: number) => {
     const projectToUpdate = projects.find((p) => p.id === projectId);
 
@@ -256,12 +273,45 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
     }
   };
 
-  // Borrar proyecto
+  // ACTUALIZAR PROYECTO
+  const handleUpdateProject = async () => {
+    if (!editingProject) return;
+
+    try {
+      const res = await fetch(
+        `http://localhost:3001/api/projects/${editingProject.id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(editProjectForm),
+        }
+      );
+      window.alert("Proyecto actualizado correctamente!");
+
+      if (!res.ok) throw new Error("Error actualizando proyecto");
+
+      await loadProjects();
+      return;
+    } catch (err) {
+      console.error("Error actualizando proyecto:", err);
+      alert("No se pudo actualizar el proyecto");
+    }
+  };
+
+  // ELIMINAR PROYECTO
   const handleDeleteProject = async (
     projectId: number,
     projectName: string
   ) => {
     try {
+      const confirmDelete = window.confirm(
+        `¿Estás seguro de que deseas eliminar el proyecto "${projectName}"?`
+      );
+
+      if (!confirmDelete) {
+        return; // cancelar la eliminación
+      }
+
       const res = await fetch(
         `http://localhost:3001/api/projects/${projectId}`,
         { method: "DELETE" }
@@ -278,7 +328,7 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
     }
   };
 
-  // Descargar version de un proyecto
+  // DESCARGAR VERSION
   const handleDownload = (projectId: any, versionNumber: any) => {
     const url = `http://localhost:3001/api/projects/${projectId}/versions/${versionNumber}/download`;
     window.location.href = url;
@@ -320,7 +370,7 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
                     <Database className="w-4 h-4" /> Ruta: {project.serverPath}
                   </p>
                   <div className="flex gap-2">
-                    {canManageDelete && (
+                    {canAdmin && (
                       <Button
                         variant="destructive"
                         size="sm"
@@ -333,7 +383,7 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
                     )}
                     <Dialog>
                       <DialogTrigger asChild>
-                        {(canManageDelete || canManageDowload) && (
+                        {(canAdmin || canDev) && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -346,6 +396,68 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
                           </Button>
                         )}
                       </DialogTrigger>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          {(canAdmin || canDev) && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setEditingProject(project); // proyecto seleccionado
+                                setEditProjectForm({
+                                  name: project.name,
+                                  description: project.description || "",
+                                });
+                              }}
+                            >
+                              <Edit className="h-3 w-3" />
+                            </Button>
+                          )}
+                        </DialogTrigger>
+
+                        <DialogContent className="max-w-lg">
+                          <DialogHeader>
+                            <DialogTitle>Editar Proyecto</DialogTitle>
+                            <DialogDescription>
+                              Modifica el nombre o la descripción del proyecto
+                            </DialogDescription>
+                          </DialogHeader>
+
+                          <div className="space-y-4">
+                            <div>
+                              <Label>Nombre</Label>
+                              <Input
+                                value={editProjectForm.name}
+                                onChange={(e) =>
+                                  setEditProjectForm((p) => ({
+                                    ...p,
+                                    name: e.target.value,
+                                  }))
+                                }
+                              />
+                            </div>
+                            <div>
+                              <Label>Descripción</Label>
+                              <Textarea
+                                value={editProjectForm.description}
+                                onChange={(e) =>
+                                  setEditProjectForm((p) => ({
+                                    ...p,
+                                    description: e.target.value,
+                                  }))
+                                }
+                              />
+                            </div>
+
+                            <Button
+                              onClick={handleUpdateProject}
+                              className="w-full"
+                            >
+                              Guardar Cambios
+                            </Button>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
                       <DialogContent className="max-w-lg">
                         <DialogHeader>
                           <DialogTitle>Versiones de {project.name}</DialogTitle>
@@ -374,7 +486,13 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
                             ))}
                           </ul>
                         )}
-                        <div className="mt-4 space-y-2">
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            handleUploadVersion(project.id);
+                          }}
+                          className="mt-4 space-y-2"
+                        >
                           <Label>Subir nueva versión</Label>
                           <input
                             ref={versionInputRef}
@@ -386,14 +504,13 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
                                 normalizeFileListFromInput(e.target.files)
                               )
                             }
+                            required
                           />
-                          <Button
-                            onClick={() => handleUploadVersion(project.id)}
-                            className="w-full"
-                          >
+
+                          <Button type="submit" className="w-full">
                             Subir Versión
                           </Button>
-                        </div>
+                        </form>
                       </DialogContent>
                     </Dialog>
                   </div>
@@ -404,7 +521,7 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
         )}
       </CardContent>
       {/* Quick Actions */}
-      {(canManageDelete || canManageDowload) && (
+      {(canAdmin || canDev) && (
         <Card>
           <CardHeader>
             <CardTitle>Acciones Rapidas</CardTitle>

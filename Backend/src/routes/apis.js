@@ -4,10 +4,7 @@ import express from 'express';
 export default ({ poolPromise, sql, https }) => {
     const router = express.Router();
 
-    /* ==============================
-        CREAR NUEVA API
-    ================================ */
-
+    // CREAR NUEVA API
     router.post('/apis', async (req, res) => {
         try {
             const { name, path } = req.body;
@@ -35,10 +32,7 @@ export default ({ poolPromise, sql, https }) => {
         }
     });
 
-    /* ==============================
-        ELIMINAR API
-    ================================ */
-
+    // ELIMINAR API
     router.delete('/apis/:id', async (req, res) => {
         const { id } = req.params;
 
@@ -57,10 +51,7 @@ export default ({ poolPromise, sql, https }) => {
         }
     });
 
-    /* ==============================
-        MONITOREO DE APIS
-    ================================ */
-
+    // OBTENER APIS
     router.get('/monitor/apis', async (req, res) => {
         try {
             const pool = await poolPromise;
@@ -92,7 +83,7 @@ export default ({ poolPromise, sql, https }) => {
 
                             if (statusCode < 200 || statusCode >= 300) {
                                 reject(
-                                    new Error(`Request Failed with Status Code: ${statusCode}`)
+                                    new Error(`peticion fallida: ${statusCode}`)
                                 );
                                 return;
                             }
@@ -146,8 +137,8 @@ export default ({ poolPromise, sql, https }) => {
 
             res.json(results);
         } catch (err) {
-            console.error('Error monitoring APIs:', err);
-            res.status(500).json({ error: 'Could not fetch and monitor APIs' });
+            console.error('error: ', err);
+            res.status(500).json({ error: 'no se pudo obtener y monitorear las APIs' });
         }
     });
 

@@ -18,6 +18,7 @@ interface LoginFormProps {
   onLogin: (userData: any) => void;
 }
 
+// COMPONENTE DE FORMULARIO DE LOGIN
 export default function LoginForm({ onLogin }: LoginFormProps) {
   const [credentials, setCredentials] = useState({
     username: "",
@@ -31,6 +32,7 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
     setIsLoading(true);
     setError(null);
 
+    // LLAMADA AL BACKEND PARA AUTENTICAR
     try {
       const response = await fetch("http://localhost:3001/api/login", {
         method: "POST",

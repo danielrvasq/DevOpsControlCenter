@@ -60,6 +60,7 @@ interface UsersModuleProps {
 }
 
 export default function UsersModule({ currentUser }: UsersModuleProps) {
+  // ESTADOS Y VARIABLES
   const [users, setUsers] = useState<User[]>([]);
   const [newUser, setNewUser] = useState({
     name: "",
@@ -69,6 +70,7 @@ export default function UsersModule({ currentUser }: UsersModuleProps) {
     password: "",
   });
 
+  // EDITAR USUARIO
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editForm, setEditForm] = useState({
     name: "",
@@ -77,13 +79,14 @@ export default function UsersModule({ currentUser }: UsersModuleProps) {
     rol: "viewer",
   });
 
-  const canManageUsers = currentUser?.rol === "admin";
+  // PERMISOS
+  const canAdmin = currentUser?.rol === "admin";
 
   useEffect(() => {
     fetchUsers();
   }, []);
 
-  // Cargar usuarios
+  // CARGAR USUARIOS
   const fetchUsers = async () => {
     try {
       const response = await fetch("http://localhost:3001/api/users");
@@ -94,10 +97,9 @@ export default function UsersModule({ currentUser }: UsersModuleProps) {
       console.error("Error fetching users:", error);
     }
   };
-/*=============================
-    ADMINISTAR USUARIOS (SOLO ADMIN PUEDE EDITAR/CREAR/ELIMINAR)
-===============================*/
-  // Crear usuairo
+
+
+  // CREAR USUARIO
   const handleCreateUser = async () => {
     if (
       !newUser.name ||
@@ -131,7 +133,7 @@ export default function UsersModule({ currentUser }: UsersModuleProps) {
       alert("Error al crear el usuario.");
     }
   };
-  // Actualizar usuario
+  // ACTUALIZAR USUARIO
   const handleUpdateUser = async () => {
     if (!editingUser) return;
 
@@ -155,7 +157,7 @@ export default function UsersModule({ currentUser }: UsersModuleProps) {
     }
   };
 
-  // Eliminar usuario
+  // ELIMINAR USUARIO
   const handleDeleteUser = async (id: number) => {
     if (!confirm("¿Seguro que quieres eliminar este usuario?")) return;
 
@@ -173,7 +175,7 @@ export default function UsersModule({ currentUser }: UsersModuleProps) {
     }
   };
 
-  // Muestra el rol del usuario en un Badge 
+  // MUESTRA EL BADGE SEGUN EL ROL
   const getRoleBadge = (rol: string) => {
     switch (rol) {
       case "admin":
@@ -187,7 +189,7 @@ export default function UsersModule({ currentUser }: UsersModuleProps) {
     }
   };
 
-  // Muestra el estado del usuario activo/inactivo
+  //MUESTRA EL BADGE SEGUN EL ESTADO
   const getStatusBadge = (state: boolean) => {
     return state ? (
       <Badge className="bg-green-100 text-green-800">Activo</Badge>
@@ -205,7 +207,7 @@ export default function UsersModule({ currentUser }: UsersModuleProps) {
             Administra usuarios, roles y permisos del sistema
           </p>
         </div>
-        {canManageUsers && (
+        {canAdmin && (
           <Dialog>
             <DialogTrigger asChild>
               <Button className="flex items-center space-x-2">
@@ -307,7 +309,7 @@ export default function UsersModule({ currentUser }: UsersModuleProps) {
                 <TableHead>Rol</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Último Acceso</TableHead>
-                {canManageUsers && <TableHead>Acciones</TableHead>}
+                {canAdmin && <TableHead>Acciones</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -330,7 +332,7 @@ export default function UsersModule({ currentUser }: UsersModuleProps) {
                         })
                       : "Nunca"}
                   </TableCell>
-                  {canManageUsers && (
+                  {canAdmin && (
                     <TableCell>
                       <div className="flex space-x-2">
                         {/* 🔹 Botón editar */}
@@ -475,8 +477,8 @@ export default function UsersModule({ currentUser }: UsersModuleProps) {
                 <li>• Acceso limitado</li>
               </ul>
             </div>
-          </div>
-        </CardContent>
+          </div> 
+        </CardContent> 
       </Dialog>
     </div>
   );
