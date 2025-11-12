@@ -43,12 +43,9 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
   const [projectDescription, setProjectDescription] = useState("");
   const [versions, setVersions] = useState<any[]>([]);
 
-  // 
+  // ESTADOS DE ARCHIVOS SELECCIONADOS
   const [selectedFiles, setSelectedFiles] = useState<any[]>([]);
   const [selectedProject, setSelectedProject] = useState<any>(null);
-  
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [canManage, setCurrentUser] = useState<any>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const versionInputRef = useRef<HTMLInputElement | null>(null);
   const [editingProject, setEditingProject] = useState<any | null>(null);
@@ -56,9 +53,13 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
     name: "",
     description: "",
   });
+  
+  // ESTADOS DE AUTENTICACION Y USUARIO
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [canManage, setCurrentUser] = useState<any>(null);
   const canAdmin = canManage?.rol === "admin";
   const canDev = canManage?.rol === "developer";
-
+  
   // ADMINISTRAR PERMISOS DE USUARIO
   useEffect(() => {
     async function fetchUser() {
@@ -139,38 +140,6 @@ export default function ProjectsModule({ currentUser }: ProjectsModuleProps) {
     }
     return arr;
   };
-
-  // SELECCIONAR CARPETA
-  // const handleFolderPick = async () => {
-  //   // feature-detect
-  //   if (!("showDirectoryPicker" in window)) return;
-  //   try {
-  //     // @ts-ignore
-  //     const dirHandle = await (window as any).showDirectoryPicker();
-  //     const entries: any[] = [];
-
-  //     const walk = async (dir: any, prefix = "") => {
-  //       for await (const [name, handle] of dir.entries()) {
-  //         if (handle.kind === "file") {
-  //           const file = await handle.getFile();
-  //           const relativePath = (prefix ? prefix + "/" : "") + name;
-  //           if (
-  //             relativePath.split("/").some((s: string) => s === "node_modules")
-  //           )
-  //             continue;
-  //           entries.push({ file, relativePath });
-  //         } else if (handle.kind === "directory") {
-  //           await walk(handle, (prefix ? prefix + "/" : "") + name);
-  //         }
-  //       }
-  //     };
-
-  //     await walk(dirHandle);
-  //     setSelectedFiles(entries);
-  //   } catch (e) {
-  //     console.error("Error picking directory:", e);
-  //   }
-  // };
 
   // CONFIGURAR INPUTS PARA CARPETAS
   useEffect(() => {

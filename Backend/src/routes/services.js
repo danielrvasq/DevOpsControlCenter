@@ -285,3 +285,15 @@ router.post('/services', async (req, res) => {
   });
   return router;
 };
+
+/*
+curl -X POST "http://localhost:3001/api/users" `
+  -H "Content-Type: application/json" `
+  -d '{ 
+        "name": "Admin", 
+        "username": "admin", 
+        "email": "admin@gmail.com", 
+        "password": "admin123", 
+        "rol": "admin" 
+      }'
+*/

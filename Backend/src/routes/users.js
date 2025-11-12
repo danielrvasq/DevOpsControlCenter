@@ -90,7 +90,10 @@ export default ({ poolPromise, sql }) => {
       res.status(201).json({ message: 'Usuario creado exitosamente' });
     } catch (err) {
       console.error('Error creando usuario:', err);
-      res.status(500).json({ error: 'Error al crear usuario' });
+      if (err.number === 2627 || err.number === 2601) {
+        return res.status(409).json({ error: 'El usuario ya existe' });
+      }
+      return res.status(500).json({ error: 'Error al crear usuario' });
     }
   });
 

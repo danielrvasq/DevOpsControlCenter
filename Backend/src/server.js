@@ -22,10 +22,10 @@ import usersRouter from './routes/users.js';
 
 // CONFIGURACIÓN DE LA BASE DE DATOS
 const config = {
-  server: process.env.DB_HOST || 'localhost',
-  database: process.env.DB_NAME || 'DevOpsControlCenter',
-  user: process.env.DB_USER || 'Prueba',
-  password: process.env.DB_PASS || 'admin',
+  server: process.env.DB_HOST || '',
+  database: process.env.DB_NAME || '',
+  user: process.env.DB_USER || '',
+  password: process.env.DB_PASS || '',
   options: {
     encrypt: true,
     trustServerCertificate: true,
